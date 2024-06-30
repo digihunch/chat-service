@@ -1,0 +1,24 @@
+model_list:
+  #  - model_name: gpt-4o
+  #    litellm_params:
+  #      model: azure/gpt-4o
+  #      api_base: os.environ/AZURE_API_BASE
+  #      api_key: os.environ/AZURE_API_KEY
+  #      api_version: os.environ/AZURE_API_VERSION
+  #      rpm: 20
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: gpt-3.5-turbo
+      api_key: os.environ/OPENAI_API_KEY
+      api_base: os.environ/OPENAI_API_BASE_URL
+      rpm: 480
+      timeout: 300
+      stream_timeout: 60
+
+general_settings:
+  master_key: sk-liteLLM1234
+  database_url: "postgresql://admin:admin123@postgres-db:5432/litellm-db"
+
+litellm_settings:
+  drop_params: True
+  set_verbose: False

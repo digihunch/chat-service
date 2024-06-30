@@ -1,0 +1,83 @@
+services:
+  open-webui-svc:
+    container_name: open-webui
+    image: ghcr.io/open-webui/open-webui:main
+    environment:
+      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
+      - GLOBAL_LOG_LEVEL=DEBUG
+      - ENABLE_LITELLM=False
+      - OPENAI_API_KEY=sk-998877665544aabbcc  ## GENERATE THIS KEY IN LITELLM
+      - OPENAI_API_BASE_URL=http://litellm-proxy:8000
+      - OLLAMA_BASE_URL=http://ollama-svc:11434
+    ports:
+      - 3000:8080
+    volumes:
+      - ./ollama-webui/data:/app/backend/data
+    restart: unless-stopped
+    networks:
+      - wl_network
+    depends_on:
+      - ollama-svc
+      - litellm-proxy
+
+  ollama-svc:
+    image: ollama/ollama:latest
+    container_name: ollama
+    pull_policy: if_not_present
+    tty: true
+    ports:
+      - 7869:11434
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    volumes:
+      - ./volumes/ollama:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - wl_network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  postgres-db:
+    image: postgres
+    container_name: postgresdb
+    restart: always
+    shm_size: 128mb
+    ports:
+      - 5432:5432
+    volumes:
+      - ./volumes/pgdata:/var/lib/postgresql/data
+    networks:
+      - wl_network
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: litellm-db
+
+  litellm-proxy:
+    container_name: litellm-proxy
+    image: ghcr.io/berriai/litellm:main-latest
+    environment:
+      - OPENAI_API_KEY=sk-proj-aabbccddeeffxxyyzziooospsabcefooxyzos ## GENERATE THIS KEY IN OPEN AI 
+      - OPENAI_API_BASE_URL=https://api.openai.com/v1
+    ports:
+      - 4000:8000
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    command:
+      ["--config", "/app/config.yaml", "--port", "8000", "--detailed_debug"]
+    restart: unless-stopped
+    networks:
+      - wl_network
+    depends_on:
+      - postgres-db
+
+networks:
+  wl_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: 'false'
