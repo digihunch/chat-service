@@ -1,13 +1,26 @@
 services:
+  nginx:
+    container_name: open-webui-nginx
+    image: nginx:latest
+    ports:
+      - 443:443
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/certs:/etc/nginx/certs
+    restart: unless-stopped
+    networks:
+      - wl_network
+
   open-webui-svc:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main
-    environment:
+    environment:    # https://docs.openwebui.com/getting-started/env-configuration/
       - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
       - GLOBAL_LOG_LEVEL=DEBUG
       - ENABLE_LITELLM=False
       - OPENAI_API_KEY=sk-998877665544aabbcc  ## GENERATE THIS KEY IN LITELLM
-      - OPENAI_API_BASE_URL=http://litellm-proxy:8000
+      - OPENAI_API_BASE_URL=http://litellm-proxy-svc:8000
+      - ENABLE_OLLAMA_API=True
       - OLLAMA_BASE_URL=http://ollama-svc:11434
     ports:
       - 3000:8080
@@ -18,11 +31,11 @@ services:
       - wl_network
     depends_on:
       - ollama-svc
-      - litellm-proxy
+      - litellm-proxy-svc
 
   ollama-svc:
     image: ollama/ollama:latest
-    container_name: ollama
+    container_name: ollama   # https://hub.docker.com/r/ollama/ollama
     pull_policy: if_not_present
     tty: true
     ports:
@@ -54,11 +67,11 @@ services:
     networks:
       - wl_network
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: litellm-db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_DB=litellm-db
 
-  litellm-proxy:
+  litellm-proxy-svc:
     container_name: litellm-proxy
     image: ghcr.io/berriai/litellm:main-latest
     environment:
@@ -67,7 +80,7 @@ services:
     ports:
       - 4000:8000
     volumes:
-      - ./litellm/config.yaml:/app/config.yaml
+      - ./litellm/config.yaml:/app/config.yaml  # https://litellm.vercel.app/docs/proxy/deploy
     command:
       ["--config", "/app/config.yaml", "--port", "8000", "--detailed_debug"]
     restart: unless-stopped
@@ -78,6 +91,5 @@ services:
 
 networks:
   wl_network:
+    enable_ipv6: false
     driver: bridge
-    driver_opts:
-      com.docker.network.enable_ipv6: 'false'

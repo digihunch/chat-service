@@ -105,7 +105,16 @@ curl 'http://0.0.0.0:4000/key/generate' \
 ```
 From the response, take the value from key attribute, past it in as the value of environment variable `OPENAI_API_KEY` under open-webui-svc.
 
-Then we restart docker compose
+
+## Configure demo SSL key and certificate
+
+Suppose the site name is chatsample.digihunch.com, create the demo certificate using the following command:
+```sh
+openssl req -x509 -sha256 -newkey rsa:4096 -days 365 -nodes -subj /C=CA/ST=Ontario/L=Waterloo/O=Digihunch/OU=Development/CN=chatsample.digihunch.com/emailAddress=chatsample@digihunch.com -keyout /home/ubuntu/chat-sample/nginx/certs/hostname-domain.key -out /home/ubuntu/chat-sample/nginx/certs/hostname-domain.crt
+```
+The command creates the `hostname-domain.key` and `hostname-domain.crt` file in the `/home/ubuntu/chat-sample/nginx/certs/` directory, which is referenced as relative path in the configuration in `nginx.conf` file included in the repo.
+
+Then we restart docker compose to reflect the changes to litellm and nginx config:
 
 ```sh
 docker compose down
