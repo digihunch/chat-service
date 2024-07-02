@@ -1,19 +1,32 @@
 # chat-sample
-Sample app 
+
+This project is a demo of how to host your own LLM-based chat service with two models: a locally hosted llama3 model, and a remotely hosted GPT 3.5 turbo model. The project provides a Docker compose file with required configuration artifacts to host such service. 
+
+Below is an illustration of the architecture:
+
+```mermaid
+graph LR;
+    A(User from\nWeb Browser) --> |HTTPS\n TCP 443|B[Nginx \n Web Proxy];
+    subgraph Docker 
+    B -->|HTTP| C[Open Web UI]
+    C -->|Ollama API| D[Ollama\n llama3 model\nhosted locally];
+    C -->|Open AI API| E[LiteLLM\n Model Proxy];
+    E -->|SQL| F[(PostgreSQL\n Database)];
+    end
+    E -.->|Open AI API| G[Open AI Platform\ngpt-3.5-turbo model\nhosted remotely];
+```
+Note this project is for demo purpose only and is not considered production ready. For production-ready service deployment to implement scalability, container platform best practices, security, IdP integration, etc. Contact [Digi Hunch Inc.](https://www.digihunch.com/).
 
 
 ## Configure EC2 instance
 
-In this step, we need to have an EC2 instance on a public subnet for the website to be publicly accessible. Alternatively, use SSH port forwarding for testing. Since we'll run ollama model on this instance, it is highly recommended that the instance has an NVIDIA GPU, and has sufficient disk space (Ollama3 needs about 7G to launch but let's provision 100G). We'll use Ubuntu operating system and install NVIDIA driver.
+We need to have an EC2 instance on a public subnet for the website to be publicly accessible. Alternatively, use SSH port forwarding for testing. Since we'll run ollama model on this instance, it is highly recommended that the instance has an NVIDIA GPU, and has sufficient disk space (Ollama3 needs about 7G to launch but let's provision 100G). For example, the `g4dn.xlarge` instance type comes with a single GPU (NVIDIA T4). We'll use Ubuntu operating system and install NVIDIA driver.
 
-For example, the `g4dn.xlarge` instance type comes with a single GPU (NVIDIA T4)
+For testing, use `ami-04b70fa74e45c3917` in region `us-east-1` for Ubuntu 24.04. Since all components have releases in Docker images, we run the entire system in Docker and use Docker compose to orchestrate the services. This saves a lot of efforts from managing dependencies of each component install in Ubuntu, and provides the best portability.
 
-For testing, use `ami-04b70fa74e45c3917` in region us-east-1 for Ubuntu 24.04. We also run the system in Docker. This is because there are several components all with releases in Docker image, and I find these Docker image releases work better than their PIP package releases. All we need is a compose file to port it to a different server.
+## Install Prerequisites
 
-
-## Install prerequisites
-
-Once the instance is launched, install Docker and NVIDIA driver.
+Once the instance is launched, let's install Docker and NVIDIA driver.
 
 To set up `apt` repository and install Docker community ediction, follow the [official guide](https://docs.docker.com/engine/install/ubuntu/). It is often easier to run Docker CLI commands as `root` user. To verify that docker compose has been installed, run the following command and it should return the version.
 ```sh
@@ -47,25 +60,18 @@ nvidia-smi
 |                                         |                      |                  N/A |
 ```
 
-In addition to the driver,
-
-
-
-also install `nvidia-container-toolkit` following the [instruction](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) to install with apt. Then configure the runtime and restart Docker daemon:
+In addition to the driver, let's also install `nvidia-container-toolkit` following the [instruction](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) to install with apt. Then configure the runtime and restart Docker daemon:
 
 ```sh
 sudo nvidia-ctk runtime configure --runtime=docker
 
 sudo systemctl restart docker
-
 ```
 Note if you do not perform this step, you will come across this error when trying to bring up the model from docker:
 `could not select device driver "nvidia" with capabilities: [[gpu]]`
 
 
-
-
-## Bring up the application.
+## Bootstrap the application
 
 First, download the files in this repository. 
 
@@ -77,38 +83,37 @@ cd chat-sample
 In the `docker-compose.yaml` file, update the `OPENAI_API_KEY` environment variable under `litellm-proxy`. Then try to bring up the services (as root):
 ```sh
 docker compose up
-## Wait for 
+## Wait for the application bootstrap
 ```
-Note, even though all services are up, we still have to configure model access.
+Note, in this initial attempt, some services will fail. Finish the next few steps to complete the configuration.
 
-## Configure models
+## Configure Models
 We need to configure two models. First, we need to get pull llama3 model which runs locally. Second, we need to get Open web UI to connect to gpt-3.5-turbo model.
 
-To pull llama3 model, we use ollama from the container. 
+To pull `llama3` model, we can run the `ollama` client from the container. 
 
 ```sh
 docker exec -it ollama ollama pull llama3
 docker exec -it ollama ollama list
 ```
-With this, you should be able to pick Llama3 model from dropdown.
+With this, you should be able to pick `llama3` model from dropdown from the UI.
 
-
-To configure access to gpt-3.5-turbo model (hosted on openai), we already have a running proxy (litellm), we just need to tell litellm to create a key and give this key to open web ai.
+To configure access to `gpt-3.5-turbo` model (hosted remotely on openai), you must have an [OpenAI](https://platform.openai.com/) account and an [API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key). we already have a running proxy (litellm), we just need to tell litellm to create a key and provide this key to Open Web UI configuration.
 
 To create a key:
 ```sh
 curl 'http://0.0.0.0:4000/key/generate' \
 --header 'Authorization: Bearer sk-liteLLM1234' \
 --header 'Content-Type: application/json' \
---data-raw '{"models": ["gpt-3.5-turbo"], "metadata": {"user": "ylu@test.com"}}'
+--data-raw '{"models": ["gpt-3.5-turbo"], "metadata": {"user": "user@digihunch.com"}}'
 
 ```
-From the response, take the value from key attribute, past it in as the value of environment variable `OPENAI_API_KEY` under open-webui-svc.
+From the response, take the value from key attribute, past it in as the value of environment variable `OPENAI_API_KEY` under `open-webui-svc`.
 
 
 ## Configure demo SSL key and certificate
 
-Suppose the site name is chatsample.digihunch.com, create the demo certificate using the following command:
+Suppose the site name is `chatsample.digihunch.com`, create the demo certificate using the following command:
 ```sh
 openssl req -x509 -sha256 -newkey rsa:4096 -days 365 -nodes -subj /C=CA/ST=Ontario/L=Waterloo/O=Digihunch/OU=Development/CN=chatsample.digihunch.com/emailAddress=chatsample@digihunch.com -keyout /home/ubuntu/chat-sample/nginx/certs/hostname-domain.key -out /home/ubuntu/chat-sample/nginx/certs/hostname-domain.crt
 ```
@@ -122,4 +127,7 @@ docker compose down
 docker compose up
 ```
 
-
+Now the web site is up. You can either hit the server on public IP or port forwarding it to your client laptop's 8443 port like this:
+```bash
+ssh ubuntu@i-0ebba94b69620677e -L 8443:localhost:443
+```

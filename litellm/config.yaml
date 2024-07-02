@@ -17,7 +17,7 @@ model_list:
 
 general_settings:
   master_key: sk-liteLLM1234
-  database_url: "postgresql://admin:admin123@postgres-db:5432/litellm-db"
+  database_url: postgresql://admin:admin123@postgres-db:5432/litellm-db
 
 litellm_settings:
   drop_params: True
