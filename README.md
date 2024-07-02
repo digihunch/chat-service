@@ -7,13 +7,16 @@ Below is an illustration of the architecture:
 ```mermaid
 graph LR;
     A(User from\nWeb Browser) --> |HTTPS\n TCP 443|B[Nginx \n Web Proxy];
+    subgraph Virtual Machine with GPU
     subgraph Docker 
     B -->|HTTP| C[Open Web UI]
     C -->|Ollama API| D[Ollama\n llama3 model\nhosted locally];
     C -->|Open AI API| E[LiteLLM\n Model Proxy];
     E -->|SQL| F[(PostgreSQL\n Database)];
     end
-    E -.->|Open AI API| G[Open AI Platform\ngpt-3.5-turbo model\nhosted remotely];
+    D -.-> G[NVIDIA driver]
+    end
+    E -.->|Open AI API| H[Open AI Platform\ngpt-3.5-turbo model\nhosted remotely];
 ```
 Note this project is for demo purpose only and is not considered production ready. For production-ready service deployment to implement scalability, container platform best practices, security, IdP integration, etc. Contact [Digi Hunch Inc.](https://www.digihunch.com/).
 
@@ -131,3 +134,76 @@ Now the web site is up. You can either hit the server on public IP or port forwa
 ```bash
 ssh ubuntu@i-0ebba94b69620677e -L 8443:localhost:443
 ```
+
+
+## Troubleshooting
+
+### Ollama and llama3 model
+
+In a step above we execute ollama from container to pull the llama3 model, we can also list models the same way:
+```sh
+docker exec -it ollama ollama pull llama3
+```
+Since we exposed Ollama locally on the server at host port 6789 (as declared in the Docker compose file), we can install ollama binary on the host OS then use it to configure
+
+```sh
+sudo curl -L https://ollama.com/download/ollama-linux-amd64 -o /usr/bin/ollama
+sudo chmod +x /usr/bin/ollama
+export OLLAMA_HOST=0.0.0.0:7869
+ollama list
+```
+
+We can test the model with curl command:
+```sh
+curl http://localhost:7869/api/generate -d '{
+  "model": "llama3",
+  "prompt":"Why is the sky blue?"
+}'
+```
+
+### The remote Open API model
+
+To query for models available, you need the Open AI token to issue a curl command:
+```sh
+curl https://api.openai.com/v1/models\
+      -H "Authorization: Bearer sk-proj-aabbccddeeffxxyyzziooospsabcefooxyzos"
+```
+The response contains available models. We can test a model as well with curl:
+```sh
+curl --location 'https://api.openai.com/v1/chat/completions' \
+    --header "Authorization: Bearer sk-proj-aabbccddeeffxxyyzziooospsabcefooxyzos" \
+    --header 'Content-Type: application/json' \
+    --data '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+        {
+        "role": "user",
+        "content": "what llm are you"
+        }
+    ]
+}'
+```
+### LiteLLM
+
+The LiteLLM service is also exposed on host port 4000 and also follows Open AI API format, we can check available model with the generated key:
+```sh
+curl http://localhost:4000/v1/models\
+      -H "Authorization: Bearer sk-998877665544aabbcc"
+```
+We can test the model with
+```sh
+curl --location 'http://localhost:4000/v1/chat/completions' \
+    --header "Authorization: Bearer sk-998877665544aabbcc" \
+    --header 'Content-Type: application/json' \
+    --data '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+        {
+        "role": "user",
+        "content": "what llm are you"
+        }
+    ]
+}'
+```
+
+If we run the curl command from a container within Docker, we'll need to use the host `litellm-proxy-svc:8000` instead.
