@@ -10,6 +10,9 @@ services:
     restart: unless-stopped
     networks:
       - wl_network
+    profiles:
+      - local-model 
+      - remote-model
 
   open-webui-svc:
     container_name: open-webui
@@ -17,21 +20,28 @@ services:
     environment:    # https://docs.openwebui.com/getting-started/env-configuration/
       - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
       - GLOBAL_LOG_LEVEL=DEBUG
-      - ENABLE_LITELLM=False
+      - ENABLE_LITELLM=False    # Alwasy disable the bundled LiteLLM instance
       - OPENAI_API_KEY=$LITELLM_OPENAI_API_KEY
       - OPENAI_API_BASE_URL=http://litellm-proxy-svc:8000
-      - ENABLE_OLLAMA_API=True
+      - ENABLE_OLLAMA_API=$ENABLE_OLLAMA_LOCAL_MODEL
       - OLLAMA_BASE_URL=http://ollama-svc:11434
     ports:
       - 3000:8080
     volumes:
-      - ./ollama-webui/data:/app/backend/data
+      - ./data/open-webui:/app/backend/data
     restart: unless-stopped
     networks:
       - wl_network
+    profiles:
+      - local-model
+      - remote-model
     depends_on:
-      - ollama-svc
-      - litellm-proxy-svc
+      ollama-svc:
+        required: false
+        condition: service_started
+      litellm-proxy-svc:
+        required: false
+        condition: service_started
 
   ollama-svc:
     image: ollama/ollama:latest
@@ -43,7 +53,7 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
     volumes:
-      - ./volumes/ollama:/root/.ollama
+      - ./data/ollama:/root/.ollama
     restart: unless-stopped
     networks:
       - wl_network
@@ -54,6 +64,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    profiles:
+      - local-model
 
   postgres-db:
     image: postgres
@@ -63,13 +75,15 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./volumes/pgdata:/var/lib/postgresql/data
+      - ./data/pgdata:/var/lib/postgresql/data
     networks:
       - wl_network
     environment:
       - POSTGRES_USER=$LITELLM_PG_USER
       - POSTGRES_PASSWORD=$LITELLM_PG_PSW
       - POSTGRES_DB=$LITELLM_PG_DB
+    profiles:
+      - remote-model
 
   litellm-proxy-svc:
     container_name: litellm-proxy
@@ -90,6 +104,8 @@ services:
       - wl_network
     depends_on:
       - postgres-db
+    profiles:
+      - remote-model
 
 networks:
   wl_network:
