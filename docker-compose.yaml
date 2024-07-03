@@ -18,7 +18,7 @@ services:
       - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
       - GLOBAL_LOG_LEVEL=DEBUG
       - ENABLE_LITELLM=False
-      - OPENAI_API_KEY=sk-998877665544aabbcc  ## GENERATE THIS KEY IN LITELLM
+      - OPENAI_API_KEY=$LITELLM_OPENAI_API_KEY
       - OPENAI_API_BASE_URL=http://litellm-proxy-svc:8000
       - ENABLE_OLLAMA_API=True
       - OLLAMA_BASE_URL=http://ollama-svc:11434
@@ -67,16 +67,18 @@ services:
     networks:
       - wl_network
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin123
-      - POSTGRES_DB=litellm-db
+      - POSTGRES_USER=$LITELLM_PG_USER
+      - POSTGRES_PASSWORD=$LITELLM_PG_PSW
+      - POSTGRES_DB=$LITELLM_PG_DB
 
   litellm-proxy-svc:
     container_name: litellm-proxy
     image: ghcr.io/berriai/litellm:main-latest
     environment:
-      - OPENAI_API_KEY=sk-proj-aabbccddeeffxxyyzziooospsabcefooxyzos ## GENERATE THIS KEY IN OPEN AI 
+      - OPENAI_API_KEY=$REMOTE_OPENAI_API_KEY
       - OPENAI_API_BASE_URL=https://api.openai.com/v1
+      - MASTER_KEY=$LITELLM_MASTER_KEY
+      - DB_URL=postgresql://$LITELLM_PG_USER:$LITELLM_PG_PSW@postgres-db:5432/$LITELLM_PG_DB
     ports:
       - 4000:8000
     volumes:
