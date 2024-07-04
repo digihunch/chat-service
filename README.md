@@ -41,7 +41,7 @@ The VM should be reachable from the Internet (to host the website), and should b
 aws ec2 describe-images --owners amazon --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" --query 'Images[].{ImageId:ImageId, Name:Name}|sort_by(@,&Name)' --output table --region us-east-1
 ```
 
-I picked AMI ID `ami-04b70fa74e45c3917` for region `us-east-1` my testing. On top of the VM, we host the application in Docker container because it saves a lot of efforts troubleshooting dependencies and provides better portability. With these AMIs the default Linux user is `ubuntu` but we have to use the `root` user to start Docker daemon. To escalate to `root` user, simply use `sudo -s` as `ubuntu` user. Many of the commands given in this instruction require this root level privilege. 
+I picked AMI ID `ami-04b70fa74e45c3917` for region `us-east-1` my testing. On top of the VM, we host the application in Docker container because it saves a lot of efforts troubleshooting dependencies and provides better portability. With these AMIs the default Linux user is `ubuntu`.
 
 ## Install Docker Compose ![Static Badge](https://img.shields.io/badge/local--model-blue) ![Static Badge](https://img.shields.io/badge/remote--model-darkgreen)
 
@@ -51,6 +51,7 @@ docker compose version
 > Docker Compose version v2.27.1
 ```
 We need the Docker Compose version greater than 2.20 to leverage some of its latest features.
+Note: if you're testing on a Linux VM, we do need we need `root` privilege to start Docker daemon and run CLI commands to interact with the daemon. For this sake, the docker commands in the rest of this instruction all has `sudo` at the beginning. If you're running these commands from MacBook or other OS, `sudo` may not be required.
 
 
 ## Install NVIDIA driver ![Static Badge](https://img.shields.io/badge/local--model-blue)
@@ -63,7 +64,7 @@ sudo apt install nvidia-driver-550 nvidia-dkms-550
 
 In the command, 550 is the driver branch but the specific command may vary depending on the date it is run. Check out the `Manual driver installation` section on [this guide](https://ubuntu.com/server/docs/nvidia-drivers-installation) to figure out the correct command for the current date.
 
-The installation requires a reboot for the driver to take effect. After reboot, run the `nvidia-smi` command, which should return the driver version and CUDA version:
+After installation, run `sudo nvidia-smi` command, which should return the driver version and CUDA version:
 ```sh
 +-----------------------------------------------------------------------------------------+
 | NVIDIA-SMI 550.90.07              Driver Version: 550.90.07      CUDA Version: 12.4     |
@@ -105,7 +106,7 @@ git clone https://github.com/digihunch/chat-sample.git
 cd chat-sample
 vim .env
 ```
-The value of `COMPOSE_PROFILES` should be the profiles. It can be `local-model`, `remote-model` or `local-model,remote-model` to use both profiles. The value of `ENABLE_OLLAMA_LOCAL_MODEL` should be `True` if `local-model` is used in `COMPOSE_PROFILES`.
+The value of `COMPOSE_PROFILES` should be the profiles, based on how you would like to source the models. The value can be `local-model`, `remote-model` or `local-model,remote-model` to use both profiles. The value of `ENABLE_OLLAMA_LOCAL_MODEL` should be `True` if `local-model` is used in `COMPOSE_PROFILES`.
 
 ## Configure Model ![Static Badge](https://img.shields.io/badge/remote--model-darkgreen)
 
@@ -149,11 +150,13 @@ Then we can (re)start docker compose to reflect the changes to litellm and nginx
 ```sh
 sudo docker compose up
 ```
-If all services start correctly, the web service is listening on port 443. You can either hit the server on public IP. Alternatively, you can port forwarding it to your client laptop's 8443 port like this:
+If all services start correctly, the web service is listening on port 443. If your service is running your MacBook, you can hit the port 443 directly from a browser. If your service is running on a VM, you can hit the server on public IP at port 443. Alternatively, if your have SSH access to the VM, you can map the server's 443 port to your laptop's 8443 port with port forwarding:
 ```bash
 ssh ubuntu@i-0ebba94b69620677e -L 8443:localhost:443
 ```
-Then hit port 8443 from your browser to visit the site. Sign up and enjoy.
+Then hit port 8443 from your browser to visit the site. 
+
+Sign up and enjoy the chat.
 
 ## Troubleshooting
 
