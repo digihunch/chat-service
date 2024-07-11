@@ -102,8 +102,8 @@ Note if you do not perform this step, you will come across this error when tryin
 Let's download the files in this repository and enter the directory to edit the environment variable file `.env`:
 ```sh
 cd ~
-git clone https://github.com/digihunch/chat-sample.git
-cd chat-sample
+git clone https://github.com/digihunch/chat-service.git
+cd chat-service
 vim .env
 ```
 The value of `COMPOSE_PROFILES` should be the profiles, based on how you would like to source the models. The value can be `local-model`, `remote-model` or `local-model,remote-model` to use both profiles. The value of `ENABLE_OLLAMA_LOCAL_MODEL` should be `True` if `local-model` is used in `COMPOSE_PROFILES`.
@@ -139,11 +139,11 @@ sudo docker exec -it ollama ollama list
 The second command verifies that the model is available locally. 
 
 ## Start the Web Server ![Static Badge](https://img.shields.io/badge/local--model-blue) ![Static Badge](https://img.shields.io/badge/remote--model-darkgreen)
-Before launching the web site, we need to create a demo certificate. Suppose the site name is `chatsample.digihunch.com`, and the work directory is `/home/ubuntu/chat-sample`. Run the following `openssl` command:
+Before launching the web site, we need to create a demo certificate. Suppose the site name is `chatsample.digihunch.com`, and the work directory is `/home/ubuntu/chat-service`. Run the following `openssl` command:
 ```sh
-openssl req -x509 -sha256 -newkey rsa:4096 -days 365 -nodes -subj /C=CA/ST=Ontario/L=Waterloo/O=Digihunch/OU=Development/CN=chatsample.digihunch.com/emailAddress=chatsample@digihunch.com -keyout /home/ubuntu/chat-sample/nginx/certs/hostname-domain.key -out /home/ubuntu/chat-sample/nginx/certs/hostname-domain.crt
+openssl req -x509 -sha256 -newkey rsa:4096 -days 365 -nodes -subj /C=CA/ST=Ontario/L=Waterloo/O=Digihunch/OU=Development/CN=chatsample.digihunch.com/emailAddress=chatsample@digihunch.com -keyout /home/ubuntu/chat-service/nginx/certs/hostname-domain.key -out /home/ubuntu/chat-service/nginx/certs/hostname-domain.crt
 ```
-This command creates the `hostname-domain.key` and `hostname-domain.crt` file in the `/home/ubuntu/chat-sample/nginx/certs/` directory, which are referenced by relative path in the configuration in `nginx.conf` file included in the repo.
+This command creates the `hostname-domain.key` and `hostname-domain.crt` file in the `/home/ubuntu/chat-service/nginx/certs/` directory, which are referenced by relative path in the configuration in `nginx.conf` file included in the repo.
 
 Then we can (re)start docker compose to reflect the changes to litellm and nginx config:
 
