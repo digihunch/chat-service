@@ -7,7 +7,7 @@ The Docker compose file supports two profiles: `local-model` and `remote-model`,
 
 |  | local-model  | remote-model |
 |---------|-------------|--------------|
-| Language Model | A llama3 model locally managed by Ollama | A GPT-3.5-Turbo model remotely hosted by Open AI platform |
+| Language Model | A llama3.1 model locally managed by Ollama | A GPT-3.5-Turbo model remotely hosted by Open AI platform |
 | API Spec | Ollama API | Open AI API |
 | Host Requirement | A server with NVIDIA GPU | Any commodity grade device  |
 
@@ -19,7 +19,7 @@ graph LR;
     subgraph Virtual Machine
     subgraph Docker daemon
     B -->|HTTP| C[Open Web UI]
-    C -->|Ollama API| D[llama3 model\n running on Ollama];
+    C -->|Ollama API| D[llama3.1 model\n running on Ollama];
     C -->|Open AI API| E[LiteLLM\n Model Proxy];
     E -.-|SQL| F[(PostgreSQL\n Database)];
     end
@@ -127,13 +127,13 @@ In the response, one of the attribute is `key`, with the value starting with `sk
 
 ## Configure Model ![Static Badge](https://img.shields.io/badge/local--model-blue)
 
-To configure the llama3 model, let's start the `ollama-svc` service:
+To configure the llama3.1 model, let's start the `ollama-svc` service:
 ```sh
 sudo docker compose up ollama-svc
 ```
-Once the service is started, we can pull `llama3 model`, by running `ollama` client from the container. Start a new terminal session and run:
+Once the service is started, we can pull `llama3.1 model`, by running `ollama` client from the container. Start a new terminal session and run:
 ```sh
-sudo docker exec -it ollama ollama pull llama3
+sudo docker exec -it ollama ollama pull llama3.1
 sudo docker exec -it ollama ollama list
 ```
 The second command verifies that the model is available locally. 
